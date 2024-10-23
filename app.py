@@ -31,6 +31,9 @@ dialogflow_client = dialogflowcx.SessionsClient(credentials=credentials)
 @app.route('/chatwoot-webhook', methods=['POST'])
 def chatwoot_webhook():
     request_data = request.get_json()
+
+    print(request_data)
+
     message = request_data['content']
     sender_id = request_data['sender']['id']
 
