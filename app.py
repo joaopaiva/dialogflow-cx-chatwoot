@@ -44,17 +44,19 @@ def chatwoot_webhook():
         app.logger.error("Key 'content' not found in request data.")
         return jsonify({"status": "error", "message": "Invalid request data"}), 400
 
+    message_type = request_data['message_type']
     message = request_data['content']
     conversation = request_data['conversation']['id']
     sender_id = request_data['sender']['id']
     account = request_data['account']['id']
 
-    # Send message to Dialogflow CX
-    session_id = f"session_{sender_id}"
-    response_text = send_message_to_dialogflow_cx(session_id, message)
+    if message_type == 'incoming':
+        # Send message to Dialogflow CX
+        session_id = f"session_{sender_id}"
+        response_text = send_message_to_dialogflow_cx(session_id, message)
 
-    # Send reply back to Chatwoot
-    send_reply_to_chatwoot(account, conversation, response_text)
+        # Send reply back to Chatwoot
+        send_reply_to_chatwoot(account, conversation, response_text)
 
     return jsonify({"status": "success"}), 200
 
