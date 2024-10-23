@@ -12,8 +12,11 @@ load_dotenv(dotenv_path=dotenv_path)
 
 app = Flask(__name__)
 
-# Setup logging
-logging.basicConfig(level=logging.DEBUG)  # Set the logging level to DEBUG
+# Set up logging, show debug logs only if in DEBUG mode
+if app.config['DEBUG']:
+    logging.basicConfig(level=logging.DEBUG)  # Set the logging level to DEBUG when debugging
+else:
+    logging.basicConfig(level=logging.INFO)  # Set the logging level to INFO for production
 
 # Load environment variables
 project_id = os.environ.get('PROJECT_ID')
@@ -36,7 +39,7 @@ dialogflow_client = dialogflowcx.SessionsClient(credentials=credentials)
 def chatwoot_webhook():
     request_data = request.get_json()
 
-    # Print the entire request data for debugging
+    # Log the request data only in debug mode
     app.logger.debug(f"Received request data: {request_data}")
 
     # Check for the 'content' key in request_data
