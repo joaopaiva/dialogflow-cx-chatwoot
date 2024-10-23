@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+*.pyo
+*.env
+config/dialogflow_service_account.json
