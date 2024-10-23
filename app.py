@@ -45,14 +45,16 @@ def chatwoot_webhook():
         return jsonify({"status": "error", "message": "Invalid request data"}), 400
 
     message = request_data['content']
+    conversation = request_data['conversation']['id']
     sender_id = request_data['sender']['id']
+    account = request_data['account']['id']
 
     # Send message to Dialogflow CX
     session_id = f"session_{sender_id}"
     response_text = send_message_to_dialogflow_cx(session_id, message)
 
     # Send reply back to Chatwoot
-    send_reply_to_chatwoot(sender_id, response_text)
+    send_reply_to_chatwoot(account, conversation, response_text)
 
     return jsonify({"status": "success"}), 200
 
@@ -80,8 +82,8 @@ def send_message_to_dialogflow_cx(session_id, message):
 
     return fulfillment_text
 
-def send_reply_to_chatwoot(sender_id, response_message):
-    url = f"{chatwoot_url}/api/v1/conversations/{sender_id}/messages"
+def send_reply_to_chatwoot(account, conversation, response_message):
+    url = f"{chatwoot_url}/api/v1/accounts/{account}/conversations/{conversation}/messages"
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {chatwoot_api_key}'
