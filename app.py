@@ -5,15 +5,19 @@ import requests
 from google.cloud import dialogflowcx_v3 as dialogflowcx
 from google.oauth2 import service_account
 from pathlib import Path
+import logging
 
 dotenv_path = Path('config/.env')
 load_dotenv(dotenv_path=dotenv_path)
 
 app = Flask(__name__)
 
+# Setup logging
+logging.basicConfig(level=logging.DEBUG)  # Set the logging level to DEBUG
+
 # Load environment variables
 project_id = os.environ.get('PROJECT_ID')
-location = os.environ.get('LOCATION', 'us-central1')  # e.g., 'us-central1'
+location = os.environ.get('LOCATION', 'us-central1')
 agent_id = os.environ.get('AGENT_ID')
 google_application_credential = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
 chatwoot_api_key = os.environ.get('CHATWOOT_API_KEY')
@@ -32,7 +36,13 @@ dialogflow_client = dialogflowcx.SessionsClient(credentials=credentials)
 def chatwoot_webhook():
     request_data = request.get_json()
 
-    print(request_data)
+    # Print the entire request data for debugging
+    app.logger.debug(f"Received request data: {request_data}")
+
+    # Check for the 'content' key in request_data
+    if not request_data or 'content' not in request_data:
+        app.logger.error("Key 'content' not found in request data.")
+        return jsonify({"status": "error", "message": "Invalid request data"}), 400
 
     message = request_data['content']
     sender_id = request_data['sender']['id']
@@ -44,14 +54,14 @@ def chatwoot_webhook():
     # Send reply back to Chatwoot
     send_reply_to_chatwoot(sender_id, response_text)
 
-    return jsonify({"status": "success", "response": response_text}), 200
+    return jsonify({"status": "success"}), 200
 
 def send_message_to_dialogflow_cx(session_id, message):
     # Construct session path
     session_path = dialogflow_client.session_path(project_id, location, agent_id, session_id)
 
     # Specify the language code here
-    language_code = 'pt-br'  # or set dynamically if needed
+    language_code = 'pt-br'
 
     # Create text input and query input
     text_input = dialogflowcx.TextInput(text=message)
