@@ -50,10 +50,11 @@ def chatwoot_webhook():
     message_type = request_data.get('message_type')
     message = request_data.get('content')
     conversation = request_data.get('conversation', {}).get('id')
+    conversation_status = request_data.get('conversation', {}).get('status')
     sender_id = request_data.get('sender', {}).get('id')
     account = request_data.get('account', {}).get('id')
 
-    if message_type == 'incoming' and sender_id:
+    if message_type == 'incoming' and sender_id and conversation_status == 'pending':
         # Send message to Dialogflow CX
         session_id = f"session_{sender_id}"
         response_text, end_interaction = send_message_to_dialogflow_cx(session_id, message)
