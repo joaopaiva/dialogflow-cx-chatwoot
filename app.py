@@ -82,7 +82,7 @@ def send_message_to_dialogflow_cx(session_id, message):
     # Convert response to a dictionary
     response_dict = json_format.MessageToDict(response._pb)
 
-    app.logger.debug(f"Dialogflow response parameters: {response_dict['queryResult']['parameters']}")
+    # app.logger.debug(f"Dialogflow response parameters: {response_dict['queryResult']['parameters']}")
 
     # Default values
     end_interaction = False
