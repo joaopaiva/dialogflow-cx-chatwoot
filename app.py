@@ -125,7 +125,7 @@ def send_reply_to_chatwoot(account, conversation, response_message):
     return response.text
 
 def update_chatwoot_conversation_status(account, conversation, status):
-    url = f"{chatwoot_url}/api/v1/accounts/{account}/conversations/{conversation}"
+    url = f"{chatwoot_url}/api/v1/accounts/{account}/conversations/{conversation}/toggle_status"
     headers = {
         'Content-Type': 'application/json',
         'api_access_token': f'{chatwoot_api_key}'
@@ -134,7 +134,7 @@ def update_chatwoot_conversation_status(account, conversation, status):
         "status": status
     }
 
-    response = requests.patch(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload)
     app.logger.info(f"Updated Chatwoot conversation status to '{status}' for conversation {conversation}.")
     return response.text
 
