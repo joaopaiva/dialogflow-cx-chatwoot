@@ -1,12 +1,15 @@
+import json
+
 from flask import Flask, request, jsonify
 import os
 from dotenv import load_dotenv
 import requests
-from google.cloud import dialogflowcx_v3 as dialogflowcx
+from google.cloud import dialogflowcx_v3 as dialogflow
 from google.oauth2 import service_account
 from pathlib import Path
 import logging
 from google.protobuf import json_format
+from google.protobuf.struct_pb2 import Struct
 
 dotenv_path = Path('config/.env')
 load_dotenv(dotenv_path=dotenv_path)
@@ -33,7 +36,7 @@ credentials = service_account.Credentials.from_service_account_file(
 )
 
 # Create Dialogflow CX client
-dialogflow_client = dialogflowcx.SessionsClient(credentials=credentials)
+dialogflow_client = dialogflow.SessionsClient(credentials=credentials)
 
 # Chatwoot Webhook route
 @app.route('/chatwoot-webhook', methods=['POST'])
@@ -57,11 +60,14 @@ def chatwoot_webhook():
     if message_type == 'incoming' and sender_id and conversation_status == 'pending':
         # Send message to Dialogflow CX
         session_id = f"session_{sender_id}"
-        response_text, end_interaction = send_message_to_dialogflow_cx(session_id, message)
+        response_text, end_interaction = send_message_to_dialogflow_cx(session_id, message, request_data)
         app.logger.debug(f"Dialogflow function response: {response_text}, {end_interaction}")
 
-        # If end_interaction is true, set conversation status to "open" for human agent intervention
+        # If end_interaction is true
         if end_interaction:
+            # Send the execution summary as a private message on Chatwoot
+            send_reply_to_chatwoot(account, conversation, response_text, True)
+            # Set conversation status to "open" for human agent intervention
             update_chatwoot_conversation_status(account, conversation, 'open')
         else:
             # Send reply back to Chatwoot
@@ -69,21 +75,75 @@ def chatwoot_webhook():
 
     return jsonify({"status": "success"}), 200
 
-def send_message_to_dialogflow_cx(session_id, message):
+
+def send_message_to_dialogflow_cx(session_id, message, request_data=None):
+    if request_data is None:
+        request_data = []
+
     session_path = dialogflow_client.session_path(project_id, location, agent_id, session_id)
     language_code = 'pt-br'
-    text_input = dialogflowcx.TextInput(text=message)
-    query_input = dialogflowcx.QueryInput(text=text_input, language_code=language_code)
 
+    print(dialogflow_client)
+
+    # Prepare the text input for Dialogflow
+    text_input = dialogflow.TextInput(text=message)
+    query_input = dialogflow.QueryInput(text=text_input, language_code=language_code)
+
+    parameters_json = {
+            # "content": request_data.get('content'),
+            "contact_info": {
+                "contact_id": request_data.get('sender', {}).get('id'),
+                "contact_name": request_data.get('sender', {}).get('name'),
+                "contact_phone": request_data.get('sender', {}).get('phone_number')
+            },
+            "browser_info": request_data.get('conversation', {}).get('additional_attributes', {}).get('browser',
+                                                                                                      {}),
+    }
+
+    # Prepare the query parameters with the parameters as a Struct
+    parameters = Struct()
+    json_format.ParseDict(
+        {
+            # "content": request_data.get('content'),
+            "browser_info": request_data.get('conversation', {}).get('additional_attributes', {}).get('browser',
+                                                                                                      {}),
+            "contact_info": {
+                "contact_id": request_data.get('sender', {}).get('id'),
+                "contact_name": request_data.get('sender', {}).get('name'),
+                "contact_email": request_data.get('sender', {}).get('email'),
+                "contact_phone": request_data.get('sender', {}).get('phone_number')
+            }
+        },
+        parameters
+    )
+
+    # Prepare the query parameters
+    query_parameters = dialogflow.QueryParameters(
+        # time_zone=request_data.get('conversation', {}).get('additional_attributes', {}).get('browser', {}).get(
+        #    'timezone', 'America/Sao_Paulo'),  # default time zone
+        # geo_location=dialogflowcx.types.LatLng(
+        #     latitude=request_data.get('additional_attributes', {}).get('latitude', 0.0),
+        #     longitude=request_data.get('additional_attributes', {}).get('longitude', 0.0)
+        # ),
+        end_user_metadata=parameters_json,
+        analyze_query_text_sentiment=True,
+        parameters=parameters_json
+    )
+
+    request = dialogflow.DetectIntentRequest(
+        session=session_path,
+        query_input=query_input,
+        query_params=query_parameters
+    )
     # Make the request to Dialogflow CX
     response = dialogflow_client.detect_intent(
-        request={"session": session_path, "query_input": query_input}
+        request=request
     )
+
+    print(response)
 
     # Convert response to a dictionary
     response_dict = json_format.MessageToDict(response._pb)
-
-    # app.logger.debug(f"Dialogflow response parameters: {response_dict['queryResult']['parameters']}")
 
     # Default values
     end_interaction = False
@@ -111,7 +171,9 @@ def send_message_to_dialogflow_cx(session_id, message):
 
     return response_text, end_interaction
 
-def send_reply_to_chatwoot(account, conversation, response_message):
+def send_reply_to_chatwoot(account, conversation, response_message, private=False):
+    private = bool(private)
+
     url = f"{chatwoot_url}/api/v1/accounts/{account}/conversations/{conversation}/messages"
     headers = {
         'Content-Type': 'application/json',
@@ -119,7 +181,8 @@ def send_reply_to_chatwoot(account, conversation, response_message):
     }
     payload = {
         "content": response_message,
-        "message_type": "outgoing"
+        "message_type": "outgoing",
+        "private": private
     }
 
     response = requests.post(url, headers=headers, json=payload)
