@@ -79,6 +79,8 @@ def chatwoot_webhook():
             message += "Meu email é " + contact_info['email'] + "\n"
 
         custom_attributes['user_meta_sent_dialogflow'] = True
+        add_custom_attributes_chatwoot_conversation(account, conversation, custom_attributes)
+
 
     if message_type == 'incoming' and sender_id and conversation_status == 'pending':
         # Send message to Dialogflow CX
@@ -88,7 +90,7 @@ def chatwoot_webhook():
 
         if not end_interaction:
             # Send reply back to Chatwoot
-            send_reply_to_chatwoot(account, conversation, response_text, False, custom_attributes)
+            send_reply_to_chatwoot(account, conversation, response_text)
         # If end_interaction is true
         else:
             # Send the execution summary as a private message on Chatwoot
@@ -178,10 +180,7 @@ def send_message_to_dialogflow_cx(session_id, message, request_data=None):
 
     return response_text, end_interaction
 
-def send_reply_to_chatwoot(account, conversation, response_message, private=False, custom_attributes=None):
-    if custom_attributes is None:
-        custom_attributes = {}
-
+def send_reply_to_chatwoot(account, conversation, response_message, private=False):
     private = bool(private)
 
     url = f"{chatwoot_url}/api/v1/accounts/{account}/conversations/{conversation}/messages"
@@ -193,16 +192,29 @@ def send_reply_to_chatwoot(account, conversation, response_message, private=Fals
         "content": response_message,
         "message_type": "outgoing",
         "private": private,
-        "custom_attributes": {
-            "user_meta_sent_dialogflow"
-        }
     }
+
+    response = requests.post(url, headers=headers, json=payload)
+    return response.text
+
+def add_custom_attributes_chatwoot_conversation(account, conversation, custom_attributes):
+
+    url = f"{chatwoot_url}/api/v1/accounts/{account}/conversations/{conversation}/custom_attributes"
+    headers = {
+        'Content-Type': 'application/json',
+        'api_access_token': f'{chatwoot_api_key}'
+    }
+    payload = {}
 
     for custom_attribute in custom_attributes:
         if custom_attributes[custom_attribute]:
             payload["custom_attributes"][custom_attribute] = custom_attributes[custom_attribute]
 
+    if not bool(payload):
+        return
+
     response = requests.post(url, headers=headers, json=payload)
+    app.logger.info(f"Added custom attributes to Chatwoot for conversation {conversation}.")
     return response.text
 
 def update_chatwoot_conversation_status(account, conversation, status):
