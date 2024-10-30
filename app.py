@@ -198,20 +198,18 @@ def send_reply_to_chatwoot(account, conversation, response_message, private=Fals
     return response.text
 
 def add_custom_attributes_chatwoot_conversation(account, conversation, custom_attributes):
+    valid_attributes = {key: value for key, value in custom_attributes.items() if value}
+
+    if not valid_attributes:
+        return
 
     url = f"{chatwoot_url}/api/v1/accounts/{account}/conversations/{conversation}/custom_attributes"
     headers = {
         'Content-Type': 'application/json',
-        'api_access_token': f'{chatwoot_api_key}'
+        'api_access_token': chatwoot_api_key
     }
-    payload = {}
 
-    for custom_attribute in custom_attributes:
-        if custom_attributes[custom_attribute]:
-            payload["custom_attributes"][custom_attribute] = custom_attributes[custom_attribute]
-
-    if not bool(payload):
-        return
+    payload = {"custom_attributes": valid_attributes}
 
     response = requests.post(url, headers=headers, json=payload)
     app.logger.info(f"Added custom attributes to Chatwoot for conversation {conversation}.")
