@@ -227,5 +227,4 @@ def update_chatwoot_conversation_status(account, conversation, status):
     return response.text
 
 if __name__ == '__main__':
-    add_custom_attributes_chatwoot_conversation(1, 1145, )
     app.run(host='0.0.0.0', port=5000)
