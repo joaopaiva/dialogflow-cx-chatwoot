@@ -73,10 +73,10 @@ def chatwoot_webhook():
     if not user_meta_sent_dialogflow:
         if contact_info['contact_name']:
             message += "Meu nome é " + contact_info['contact_name'] + " "
-        if contact_info['contact_phone']:
-            message += "Meu telefone é " + contact_info['contact_phone'] + " "
-        if contact_info['email']:
-            message += "Meu email é " + contact_info['email'] + " "
+        # if contact_info['contact_phone']:
+        #     message += "Meu telefone é " + contact_info['contact_phone'] + " "
+        # if contact_info['email']:
+        #     message += "Meu email é " + contact_info['email'] + " "
 
         custom_attributes['user_meta_sent_dialogflow'] = True
         add_custom_attributes_chatwoot_conversation(account, conversation, custom_attributes)
