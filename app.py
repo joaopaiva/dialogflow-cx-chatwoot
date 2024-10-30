@@ -1,5 +1,5 @@
 import json
-
+import time
 from flask import Flask, request, jsonify
 import os
 from dotenv import load_dotenv
@@ -55,6 +55,8 @@ def chatwoot_webhook():
     conversation_status = request_data.get('conversation', {}).get('status')
     sender_id = request_data.get('sender', {}).get('id')
     account = request_data.get('account', {}).get('id')
+
+    time.sleep(6)
 
     custom_attributes = {}
 
@@ -204,6 +206,8 @@ def add_custom_attributes_chatwoot_conversation(account, conversation, custom_at
         'api_access_token': chatwoot_api_key
     }
 
+    payload = { "custom_attributes": valid_attributes }
+
     response = requests.post(url, headers=headers, json=valid_attributes)
     app.logger.info(f"Added custom attributes to Chatwoot for conversation {conversation}.")
     return response.text
@@ -223,4 +227,5 @@ def update_chatwoot_conversation_status(account, conversation, status):
     return response.text
 
 if __name__ == '__main__':
+    add_custom_attributes_chatwoot_conversation(1, 1145, )
     app.run(host='0.0.0.0', port=5000)
