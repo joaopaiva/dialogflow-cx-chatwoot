@@ -57,21 +57,44 @@ def chatwoot_webhook():
     sender_id = request_data.get('sender', {}).get('id')
     account = request_data.get('account', {}).get('id')
 
+    custom_attributes = {}
+
+    # Verify on custom user attribute from Chatwoot if the user meta was already sent to DialogFlow
+    user_meta_sent_dialogflow = request_data.get('conversation', {}).get('custom_attributes', {}).get(
+        'user_meta_sent_dialogflow')
+
+    contact_info = {
+        'contact_id': request_data.get('sender', {}).get('id'),
+        'contact_name': request_data.get('sender', {}).get('name'),
+        'contact_phone': request_data.get('sender', {}).get('phone_number'),
+        'email': request_data.get('sender', {}).get('email')
+    }
+
+    if not user_meta_sent_dialogflow:
+        if contact_info['contact_name']:
+            message += "Meu nome é " + contact_info['contact_name'] + "\n"
+        if contact_info['contact_phone']:
+            message += "Meu telefone é " + contact_info['contact_phone'] + "\n"
+        if contact_info['email']:
+            message += "Meu email é " + contact_info['email'] + "\n"
+
+        custom_attributes['user_meta_sent_dialogflow'] = True
+
     if message_type == 'incoming' and sender_id and conversation_status == 'pending':
         # Send message to Dialogflow CX
         session_id = f"session_{sender_id}"
         response_text, end_interaction = send_message_to_dialogflow_cx(session_id, message, request_data)
         app.logger.debug(f"Dialogflow function response: {response_text}, {end_interaction}")
 
+        if not end_interaction:
+            # Send reply back to Chatwoot
+            send_reply_to_chatwoot(account, conversation, response_text, False, custom_attributes)
         # If end_interaction is true
-        if end_interaction:
+        else:
             # Send the execution summary as a private message on Chatwoot
             send_reply_to_chatwoot(account, conversation, response_text, True)
             # Set conversation status to "open" for human agent intervention
             update_chatwoot_conversation_status(account, conversation, 'open')
-        else:
-            # Send reply back to Chatwoot
-            send_reply_to_chatwoot(account, conversation, response_text)
 
     return jsonify({"status": "success"}), 200
 
@@ -94,28 +117,12 @@ def send_message_to_dialogflow_cx(session_id, message, request_data=None):
             "contact_info": {
                 "contact_id": request_data.get('sender', {}).get('id'),
                 "contact_name": request_data.get('sender', {}).get('name'),
-                "contact_phone": request_data.get('sender', {}).get('phone_number')
+                "contact_phone": request_data.get('sender', {}).get('phone_number'),
+                "email": request_data.get('sender', {}).get('email')
             },
             "browser_info": request_data.get('conversation', {}).get('additional_attributes', {}).get('browser',
                                                                                                       {}),
     }
-
-    # Prepare the query parameters with the parameters as a Struct
-    parameters = Struct()
-    json_format.ParseDict(
-        {
-            # "content": request_data.get('content'),
-            "browser_info": request_data.get('conversation', {}).get('additional_attributes', {}).get('browser',
-                                                                                                      {}),
-            "contact_info": {
-                "contact_id": request_data.get('sender', {}).get('id'),
-                "contact_name": request_data.get('sender', {}).get('name'),
-                "contact_email": request_data.get('sender', {}).get('email'),
-                "contact_phone": request_data.get('sender', {}).get('phone_number')
-            }
-        },
-        parameters
-    )
 
     # Prepare the query parameters
     query_parameters = dialogflow.QueryParameters(
@@ -171,7 +178,10 @@ def send_message_to_dialogflow_cx(session_id, message, request_data=None):
 
     return response_text, end_interaction
 
-def send_reply_to_chatwoot(account, conversation, response_message, private=False):
+def send_reply_to_chatwoot(account, conversation, response_message, private=False, custom_attributes=None):
+    if custom_attributes is None:
+        custom_attributes = {}
+
     private = bool(private)
 
     url = f"{chatwoot_url}/api/v1/accounts/{account}/conversations/{conversation}/messages"
@@ -182,8 +192,15 @@ def send_reply_to_chatwoot(account, conversation, response_message, private=Fals
     payload = {
         "content": response_message,
         "message_type": "outgoing",
-        "private": private
+        "private": private,
+        "custom_attributes": {
+            "user_meta_sent_dialogflow"
+        }
     }
+
+    for custom_attribute in custom_attributes:
+        if custom_attributes[custom_attribute]:
+            payload["custom_attributes"][custom_attribute] = custom_attributes[custom_attribute]
 
     response = requests.post(url, headers=headers, json=payload)
     return response.text
