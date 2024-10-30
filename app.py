@@ -9,7 +9,6 @@ from google.oauth2 import service_account
 from pathlib import Path
 import logging
 from google.protobuf import json_format
-from google.protobuf.struct_pb2 import Struct
 
 dotenv_path = Path('config/.env')
 load_dotenv(dotenv_path=dotenv_path)
@@ -224,9 +223,4 @@ def update_chatwoot_conversation_status(account, conversation, status):
     return response.text
 
 if __name__ == '__main__':
-    add_custom_attributes_chatwoot_conversation(1, 224, {
-                                                    "custom_attributes": {
-                                                        "user_meta_sent_dialogflow": True
-                                                    }
-                                                })
     app.run(host='0.0.0.0', port=5000)
