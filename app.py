@@ -72,11 +72,11 @@ def chatwoot_webhook():
 
     if not user_meta_sent_dialogflow:
         if contact_info['contact_name']:
-            message += "Meu nome é " + contact_info['contact_name'] + "\n"
+            message += "Meu nome é " + contact_info['contact_name'] + " "
         if contact_info['contact_phone']:
-            message += "Meu telefone é " + contact_info['contact_phone'] + "\n"
+            message += "Meu telefone é " + contact_info['contact_phone'] + " "
         if contact_info['email']:
-            message += "Meu email é " + contact_info['email'] + "\n"
+            message += "Meu email é " + contact_info['email'] + " "
 
         custom_attributes['user_meta_sent_dialogflow'] = True
         add_custom_attributes_chatwoot_conversation(account, conversation, custom_attributes)
@@ -107,8 +107,6 @@ def send_message_to_dialogflow_cx(session_id, message, request_data=None):
 
     session_path = dialogflow_client.session_path(project_id, location, agent_id, session_id)
     language_code = 'pt-br'
-
-    print(dialogflow_client)
 
     # Prepare the text input for Dialogflow
     text_input = dialogflow.TextInput(text=message)
@@ -148,8 +146,6 @@ def send_message_to_dialogflow_cx(session_id, message, request_data=None):
     response = dialogflow_client.detect_intent(
         request=request
     )
-
-    print(response)
 
     # Convert response to a dictionary
     response_dict = json_format.MessageToDict(response._pb)
